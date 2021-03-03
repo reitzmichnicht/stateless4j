@@ -2,6 +2,8 @@ package com.github.oxo42.stateless4j.triggers;
 
 import com.github.oxo42.stateless4j.conversion.ParameterConversion;
 
+import java.util.Objects;
+
 
 public abstract class TriggerWithParameters<TTrigger> {
 
@@ -15,7 +17,7 @@ public abstract class TriggerWithParameters<TTrigger> {
      * @param argumentTypes     The argument types expected by the trigger
      */
     public TriggerWithParameters(final TTrigger underlyingTrigger, final Class<?>... argumentTypes) {
-        assert argumentTypes != null : "argumentTypes is null";
+        Objects.requireNonNull(argumentTypes, "argumentTypes is null");
         
         this.underlyingTrigger = underlyingTrigger;
         this.argumentTypes = argumentTypes;
@@ -36,7 +38,7 @@ public abstract class TriggerWithParameters<TTrigger> {
      * @param args Args
      */
     public void validateParameters(Object[] args) {
-        assert args != null : "args is null";
+        Objects.requireNonNull(args, "args is null");
         ParameterConversion.validate(args, argumentTypes);
     }
     

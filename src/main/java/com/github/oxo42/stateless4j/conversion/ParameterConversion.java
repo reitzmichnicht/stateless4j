@@ -1,12 +1,14 @@
 package com.github.oxo42.stateless4j.conversion;
 
+import java.util.Objects;
+
 public final class ParameterConversion {
 
     private ParameterConversion() {
     }
 
     public static Object unpack(Object[] args, Class<?> argType, int index) {
-        assert args != null : "args is null";
+        Objects.requireNonNull(args, "args is null");
 
         if (args.length <= index) {
             throw new IllegalStateException(

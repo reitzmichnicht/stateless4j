@@ -6,6 +6,7 @@ import com.github.oxo42.stateless4j.triggers.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Models behaviour as transitions between a finite set of states
@@ -143,7 +144,7 @@ public class StateMachine<S, T> {
      * @param <TArg0> Type of the first trigger argument
      */
     public <TArg0> void fire(TriggerWithParameters1<TArg0, T> trigger, TArg0 arg0) {
-        assert trigger != null : TRIGGER_IS_NULL;
+        Objects.requireNonNull(trigger, TRIGGER_IS_NULL);
         publicFire(trigger.getTrigger(), arg0);
     }
     
@@ -160,7 +161,7 @@ public class StateMachine<S, T> {
      * @param <TArg1> Type of the second trigger argument
      */
     public <TArg0, TArg1> void fire(TriggerWithParameters2<TArg0, TArg1, T> trigger, TArg0 arg0, TArg1 arg1) {
-        assert trigger != null : TRIGGER_IS_NULL;
+        Objects.requireNonNull(trigger, TRIGGER_IS_NULL);
         publicFire(trigger.getTrigger(), arg0, arg1);
     }
     
@@ -179,7 +180,7 @@ public class StateMachine<S, T> {
      * @param <TArg2> Type of the third trigger argument
      */
     public <TArg0, TArg1, TArg2> void fire(TriggerWithParameters3<TArg0, TArg1, TArg2, T> trigger, TArg0 arg0, TArg1 arg1, TArg2 arg2) {
-        assert trigger != null : TRIGGER_IS_NULL;
+        Objects.requireNonNull(trigger, TRIGGER_IS_NULL);
         publicFire(trigger.getTrigger(), arg0, arg1, arg2);
     }
     

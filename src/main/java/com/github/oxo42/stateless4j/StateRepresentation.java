@@ -60,7 +60,7 @@ public class StateRepresentation<S, T> {
     }
 
     public void addEntryAction(final T trigger, final Action2<Transition<S, T>, Object[]> action) {
-        assert action != null : ACTION_IS_NULL;
+        Objects.requireNonNull(action, ACTION_IS_NULL);
 
         entryActions.add((t, args) -> {
             T trans_trigger = t.getTrigger();
@@ -71,22 +71,22 @@ public class StateRepresentation<S, T> {
     }
 
     public void addEntryAction(Action2<Transition<S, T>, Object[]> action) {
-        assert action != null : ACTION_IS_NULL;
+        Objects.requireNonNull(action, ACTION_IS_NULL);
         entryActions.add(action);
     }
 
     public void insertEntryAction(Action2<Transition<S, T>, Object[]> action) {
-        assert action != null : ACTION_IS_NULL;
+        Objects.requireNonNull(action, ACTION_IS_NULL);
         entryActions.add(0, action);
     }
 
     public void addExitAction(Action1<Transition<S, T>> action) {
-        assert action != null : ACTION_IS_NULL;
+        Objects.requireNonNull(action, ACTION_IS_NULL);
         exitActions.add(action);
     }
 
     public void enter(Transition<S, T> transition, Object... entryArgs) {
-        assert transition != null : TRANSITION_IS_NULL;
+        Objects.requireNonNull(transition, TRANSITION_IS_NULL);
 
         if (transition.isReentry()) {
             executeEntryActions(transition, entryArgs);
@@ -100,7 +100,7 @@ public class StateRepresentation<S, T> {
     }
 
     public void exit(Transition<S, T> transition) {
-        assert transition != null : TRANSITION_IS_NULL;
+        Objects.requireNonNull(transition, TRANSITION_IS_NULL);
 
         if (transition.isReentry()) {
             executeExitActions(transition);
@@ -113,15 +113,15 @@ public class StateRepresentation<S, T> {
     }
 
     void executeEntryActions(Transition<S, T> transition, Object[] entryArgs) {
-        assert transition != null : TRANSITION_IS_NULL;
-        assert entryArgs != null : "entryArgs is null";
+        Objects.requireNonNull(transition, TRANSITION_IS_NULL);
+        Objects.requireNonNull(entryArgs, "entryArgs is null");
         for (Action2<Transition<S, T>, Object[]> action : entryActions) {
             action.doIt(transition, entryArgs);
         }
     }
 
     void executeExitActions(Transition<S, T> transition) {
-        assert transition != null : TRANSITION_IS_NULL;
+        Objects.requireNonNull(transition, TRANSITION_IS_NULL);
         for (Action1<Transition<S, T>> action : exitActions) {
             action.doIt(transition);
         }
@@ -150,7 +150,7 @@ public class StateRepresentation<S, T> {
     }
 
     public void addSubstate(StateRepresentation<S, T> substate) {
-        assert substate != null : "substate is null";
+        Objects.requireNonNull(substate, "substate is null");
         substates.add(substate);
     }
 

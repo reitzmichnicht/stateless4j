@@ -4,6 +4,8 @@ import com.github.oxo42.stateless4j.delegates.Action1;
 import com.github.oxo42.stateless4j.delegates.Func2;
 import com.github.oxo42.stateless4j.delegates.FuncBoolean;
 
+import java.util.Objects;
+
 public class DynamicTriggerBehaviour<S, T> extends TriggerBehaviour<S, T> {
 
     private final Func2<Object[], S> destination;
@@ -11,7 +13,7 @@ public class DynamicTriggerBehaviour<S, T> extends TriggerBehaviour<S, T> {
 
     public DynamicTriggerBehaviour(T trigger, Func2<Object[], S> destination, FuncBoolean guard, Action1<Object[]> action) {
         super(trigger, guard);
-        assert destination != null : "destination is null";
+        Objects.requireNonNull(destination, "destination is null");
         this.destination = destination;
         this.action = action;
     }
