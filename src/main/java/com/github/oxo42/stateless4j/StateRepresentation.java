@@ -62,13 +62,10 @@ public class StateRepresentation<S, T> {
     public void addEntryAction(final T trigger, final Action2<Transition<S, T>, Object[]> action) {
         assert action != null : ACTION_IS_NULL;
 
-        entryActions.add(new Action2<Transition<S, T>, Object[]>() {
-            @Override
-            public void doIt(Transition<S, T> t, Object[] args) {
-                T trans_trigger = t.getTrigger();
-                if (trans_trigger != null && trans_trigger.equals(trigger)) {
-                    action.doIt(t, args);
-                }
+        entryActions.add((t, args) -> {
+            T trans_trigger = t.getTrigger();
+            if (trans_trigger != null && trans_trigger.equals(trigger)) {
+                action.doIt(t, args);
             }
         });
     }
@@ -170,7 +167,6 @@ public class StateRepresentation<S, T> {
         return this.state.equals(stateToCheck) || (superstate != null && superstate.isIncludedIn(stateToCheck));
     }
 
-    @SuppressWarnings("unchecked")
     public List<T> getPermittedTriggers() {
         Set<T> result = new HashSet<>();
 

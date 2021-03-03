@@ -14,7 +14,7 @@ import java.util.List;
  * @param <T> The type used to represent the triggers that cause state transitions
  */
 public class StateMachine<S, T> {
-    
+
     private static final String TRIGGER_IS_NULL = "trigger is null";
     protected final StateMachineConfig<S, T> config;
     protected final Func<S> stateAccessor;
@@ -23,24 +23,21 @@ public class StateMachine<S, T> {
     private boolean isStarted = false;
     private S initialState;
 
-    protected Action3<S, T, Object[]> unhandledTriggerAction = new Action3<S, T, Object[]>() {
-        @Override
-        public void doIt(S state, T trigger, Object[] args) {
-            throw new IllegalStateException(
-                    String.format(
-                            "No valid leaving transitions are permitted from state '%s' for trigger '%s'. Consider ignoring the trigger.",
-                            state, trigger)
-            );
-        }
+    protected Action3<S, T, Object[]> unhandledTriggerAction = (state, trigger, args) -> {
+        throw new IllegalStateException(
+                String.format(
+                        "No valid leaving transitions are permitted from state '%s' for trigger '%s'. Consider ignoring the trigger.",
+                        state, trigger)
+        );
     };
-    
+
     /**
      * Construct a state machine
      *
      * @param initialState The initial state
      */
     public StateMachine(S initialState) {
-        this(initialState, new StateMachineConfig<S, T>());
+        this(initialState, new StateMachineConfig<>());
     }
     
     /**
@@ -54,18 +51,8 @@ public class StateMachine<S, T> {
         this.config = config;
         final StateReference<S, T> reference = new StateReference<>();
         reference.setState(initialState);
-        stateAccessor = new Func<S>() {
-            @Override
-            public S call() {
-                return reference.getState();
-            }
-        };
-        stateMutator = new Action1<S>() {
-            @Override
-            public void doIt(S s) {
-                reference.setState(s);
-            }
-        };
+        stateAccessor = reference::getState;
+        stateMutator = reference::setState;
     }
     
     /**
@@ -130,7 +117,7 @@ public class StateMachine<S, T> {
     
     StateRepresentation<S, T> getCurrentRepresentation() {
         StateRepresentation<S, T> representation = config.getRepresentation(getState());
-        return representation == null ? new StateRepresentation<S, T>(getState()) : representation;
+        return representation == null ? new StateRepresentation<>(getState()) : representation;
     }
     
     /**
@@ -238,12 +225,7 @@ public class StateMachine<S, T> {
         if (unhandledTriggerAction == null) {
             throw new IllegalStateException("unhandledTriggerAction");
         }
-        this.unhandledTriggerAction = new Action3<S, T, Object[]>() {
-            @Override
-            public void doIt(S state, T trigger, Object[] arg3) {
-                unhandledTriggerAction.doIt(state, trigger);
-            }
-        };
+        this.unhandledTriggerAction = (state, trigger, arg3) -> unhandledTriggerAction.doIt(state, trigger);
     }
 
     /**

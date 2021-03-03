@@ -2,7 +2,7 @@ package com.github.oxo42.stateless4j.helpers;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 
 public class InputStreamHelper {
 
@@ -22,11 +22,7 @@ public class InputStreamHelper {
     }
 
     public static String readAsString(InputStream stream) {
-        try {
-            return new String(read(stream), "UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e);
-        }
+        return new String(read(stream), StandardCharsets.UTF_8);
     }
 
 }

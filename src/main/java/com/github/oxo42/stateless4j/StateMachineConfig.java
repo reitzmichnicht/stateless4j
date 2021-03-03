@@ -1,6 +1,5 @@
 package com.github.oxo42.stateless4j;
 
-import com.github.oxo42.stateless4j.delegates.Func2;
 import com.github.oxo42.stateless4j.transitions.TransitioningTriggerBehaviour;
 import com.github.oxo42.stateless4j.triggers.*;
 
@@ -8,6 +7,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -62,12 +62,7 @@ public class StateMachineConfig<TState, TTrigger> {
      * @return A configuration object through which the state can be configured
      */
     public StateConfiguration<TState, TTrigger> configure(TState state) {
-        return new StateConfiguration<>(getOrCreateRepresentation(state), new Func2<TState, StateRepresentation<TState, TTrigger>>() {
-
-            public StateRepresentation<TState, TTrigger> call(TState arg0) {
-                return getOrCreateRepresentation(arg0);
-            }
-        });
+        return new StateConfiguration<>(getOrCreateRepresentation(state), this::getOrCreateRepresentation);
     }
 
     private void saveTriggerConfiguration(TriggerWithParameters<TTrigger> trigger) {
@@ -131,7 +126,7 @@ public class StateMachineConfig<TState, TTrigger> {
     }
 
     public void generateDotFileInto(final OutputStream dotFile, boolean printLabels) throws IOException {
-        try (OutputStreamWriter w = new OutputStreamWriter(dotFile, "UTF-8")) {
+        try (OutputStreamWriter w = new OutputStreamWriter(dotFile, StandardCharsets.UTF_8)) {
             PrintWriter writer = new PrintWriter(w);
             writer.write("digraph G {\n");
             for (Map.Entry<TState, StateRepresentation<TState, TTrigger>> entry : this.stateConfiguration.entrySet()) {
@@ -152,6 +147,5 @@ public class StateMachineConfig<TState, TTrigger> {
             writer.write("}");
         }
     }
-
 
 }

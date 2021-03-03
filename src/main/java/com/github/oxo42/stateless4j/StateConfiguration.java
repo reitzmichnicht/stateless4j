@@ -13,21 +13,10 @@ public class StateConfiguration<S, T> {
     private static final String TRIGGER_IS_NULL = "trigger is null";
     private static final String DESTINATION_STATE_SELECTOR_IS_NULL = "destinationStateSelector is null";
 
-    private static final FuncBoolean NO_GUARD = new FuncBoolean() {
-        @Override
-        public boolean call() {
-            return true;
-        }
+    private static final FuncBoolean NO_GUARD = () -> true;
+    private static final Action NO_ACTION = () -> {
     };
-    private static final Action NO_ACTION = new Action() {
-        @Override
-        public void doIt() {
-        }
-    };
-    private static final Action1<Object[]> NO_ACTION_N = new Action1<Object[]>() {
-        @Override
-        public void doIt(Object[] args) {
-        }
+    private static final Action1<Object[]> NO_ACTION_N = args -> {
     };
 
     private final StateRepresentation<S, T> representation;
@@ -110,12 +99,7 @@ public class StateConfiguration<S, T> {
      */
     public StateConfiguration<S, T> permitIfElseIgnore(T trigger, S destinationState, final FuncBoolean guard) {
         enforceNotIdentityTransition(destinationState);
-        ignoreIf(trigger, new FuncBoolean() {
-            @Override
-            public boolean call() {
-                return !guard.call();
-            }
-        });
+        ignoreIf(trigger, () -> !guard.call());
         return publicPermitIf(trigger, destinationState, guard);
     }
 
@@ -134,12 +118,7 @@ public class StateConfiguration<S, T> {
      */
     public StateConfiguration<S, T> permitIfElseIgnore(T trigger, S destinationState, final FuncBoolean guard, Action action) {
         enforceNotIdentityTransition(destinationState);
-        ignoreIf(trigger, new FuncBoolean() {
-            @Override
-            public boolean call() {
-                return !guard.call();
-            }
-        });
+        ignoreIf(trigger, () -> !guard.call());
         return publicPermitIf(trigger, destinationState, guard, action);
     }
 
@@ -177,7 +156,7 @@ public class StateConfiguration<S, T> {
     public StateConfiguration<S, T> permitInternalIf(T trigger, FuncBoolean guard, Action action) {
         assert guard != null : GUARD_IS_NULL;
         assert action != null : ACTION_IS_NULL;
-        representation.addTriggerBehaviour(new InternalTriggerBehaviour<S, T>(
+        representation.addTriggerBehaviour(new InternalTriggerBehaviour<>(
                 trigger, guard, action));
         return this;
     }
@@ -266,7 +245,7 @@ public class StateConfiguration<S, T> {
      */
     public StateConfiguration<S, T> ignoreIf(T trigger, FuncBoolean guard) {
         assert guard != null : GUARD_IS_NULL;
-        representation.addTriggerBehaviour(new InternalTriggerBehaviour<S, T>(trigger, guard, NO_ACTION));
+        representation.addTriggerBehaviour(new InternalTriggerBehaviour<>(trigger, guard, NO_ACTION));
         return this;
     }
 
@@ -278,12 +257,7 @@ public class StateConfiguration<S, T> {
      */
     public StateConfiguration<S, T> onEntry(final Action entryAction) {
         assert entryAction != null : ENTRY_ACTION_IS_NULL;
-        return onEntry(new Action1<Transition<S, T>>() {
-            @Override
-            public void doIt(Transition<S, T> t) {
-                entryAction.doIt();
-            }
-        });
+        return onEntry(t -> entryAction.doIt());
     }
 
     /**
@@ -294,12 +268,7 @@ public class StateConfiguration<S, T> {
      */
     public StateConfiguration<S, T> onEntry(final Action1<Transition<S, T>> entryAction) {
         assert entryAction != null : ENTRY_ACTION_IS_NULL;
-        representation.addEntryAction(new Action2<Transition<S, T>, Object[]>() {
-            @Override
-            public void doIt(Transition<S, T> arg1, Object[] arg2) {
-                entryAction.doIt(arg1);
-            }
-        });
+        representation.addEntryAction((arg1, arg2) -> entryAction.doIt(arg1));
         return this;
     }
 
@@ -311,12 +280,7 @@ public class StateConfiguration<S, T> {
      */
     public StateConfiguration<S, T> onEntry(final Action2<Transition<S, T>, Object[]> entryAction) {
         assert entryAction != null : ENTRY_ACTION_IS_NULL;
-        representation.addEntryAction(new Action2<Transition<S, T>, Object[]>() {
-            @Override
-            public void doIt(Transition<S, T> arg1, Object[] arg2) {
-                entryAction.doIt(arg1, arg2);
-            }
-        });
+        representation.addEntryAction(entryAction);
         return this;
     }
 
@@ -331,12 +295,7 @@ public class StateConfiguration<S, T> {
      */
     public StateConfiguration<S, T> onEntryFrom(T trigger, final Action entryAction) {
         assert entryAction != null : ENTRY_ACTION_IS_NULL;
-        return onEntryFrom(trigger, new Action1<Transition<S, T>>() {
-            @Override
-            public void doIt(Transition<S, T> arg1) {
-                entryAction.doIt();
-            }
-        });
+        return onEntryFrom(trigger, arg1 -> entryAction.doIt());
     }
 
     /**
@@ -348,12 +307,7 @@ public class StateConfiguration<S, T> {
      */
     public StateConfiguration<S, T> onEntryFrom(T trigger, final Action1<Transition<S, T>> entryAction) {
         assert entryAction != null : ENTRY_ACTION_IS_NULL;
-        representation.addEntryAction(trigger, new Action2<Transition<S, T>, Object[]>() {
-            @Override
-            public void doIt(Transition<S, T> arg1, Object[] arg2) {
-                entryAction.doIt(arg1);
-            }
-        });
+        representation.addEntryAction(trigger, (arg1, arg2) -> entryAction.doIt(arg1));
         return this;
     }
 
@@ -367,12 +321,7 @@ public class StateConfiguration<S, T> {
      */
     public <TArg0> StateConfiguration<S, T> onEntryFrom(TriggerWithParameters1<TArg0, T> trigger, final Action1<TArg0> entryAction) {
         assert entryAction != null : ENTRY_ACTION_IS_NULL;
-        return onEntryFrom(trigger, new Action2<TArg0, Transition<S, T>>() {
-            @Override
-            public void doIt(TArg0 arg1, Transition<S, T> arg2) {
-                entryAction.doIt(arg1);
-            }
-        });
+        return onEntryFrom(trigger, (arg1, arg2) -> entryAction.doIt(arg1));
     }
 
     /**
@@ -391,16 +340,11 @@ public class StateConfiguration<S, T> {
      * @param <TArg0>     Type of the first trigger argument
      * @return The receiver
      */
+    @SuppressWarnings("unchecked")
     public <TArg0> StateConfiguration<S, T> onEntryFrom(TriggerWithParameters1<TArg0, T> trigger, final Action2<TArg0, Transition<S, T>> entryAction) {
         assert trigger != null : TRIGGER_IS_NULL;
         assert entryAction != null : ENTRY_ACTION_IS_NULL;
-        representation.addEntryAction(trigger.getTrigger(), new Action2<Transition<S, T>, Object[]>() {
-            @SuppressWarnings("unchecked")
-            @Override
-            public void doIt(Transition<S, T> t, Object[] arg2) {
-                entryAction.doIt((TArg0) arg2[0], t);
-            }
-        });
+        representation.addEntryAction(trigger.getTrigger(), (t, arg2) -> entryAction.doIt((TArg0) arg2[0], t));
         return this;
     }
 
@@ -423,12 +367,7 @@ public class StateConfiguration<S, T> {
      */
     public <TArg0, TArg1> StateConfiguration<S, T> onEntryFrom(TriggerWithParameters2<TArg0, TArg1, T> trigger, final Action2<TArg0, TArg1> entryAction) {
         assert entryAction != null : ENTRY_ACTION_IS_NULL;
-        return onEntryFrom(trigger, new Action3<TArg0, TArg1, Transition<S, T>>() {
-            @Override
-            public void doIt(TArg0 a0, TArg1 a1, Transition<S, T> t) {
-                entryAction.doIt(a0, a1);
-            }
-        });
+        return onEntryFrom(trigger, (a0, a1, t) -> entryAction.doIt(a0, a1));
     }
 
     /**
@@ -448,18 +387,13 @@ public class StateConfiguration<S, T> {
      * @param <TArg1>     Type of the second trigger argument
      * @return The receiver
      */
+    @SuppressWarnings("unchecked")
     public <TArg0, TArg1> StateConfiguration<S, T> onEntryFrom(TriggerWithParameters2<TArg0, TArg1, T> trigger, final Action3<TArg0, TArg1, Transition<S, T>> entryAction) {
         assert trigger != null : TRIGGER_IS_NULL;
         assert entryAction != null : ENTRY_ACTION_IS_NULL;
-        representation.addEntryAction(trigger.getTrigger(), new Action2<Transition<S, T>, Object[]>() {
-            @SuppressWarnings("unchecked")
-            @Override
-            public void doIt(Transition<S, T> t, Object[] args) {
-                entryAction.doIt(
-                        (TArg0) args[0],
-                        (TArg1) args[1], t);
-            }
-        });
+        representation.addEntryAction(trigger.getTrigger(), (t, args) -> entryAction.doIt(
+                (TArg0) args[0],
+                (TArg1) args[1], t));
         return this;
     }
 
@@ -483,12 +417,7 @@ public class StateConfiguration<S, T> {
      */
     public <TArg0, TArg1, TArg2> StateConfiguration<S, T> onEntryFrom(TriggerWithParameters3<TArg0, TArg1, TArg2, T> trigger, final Action3<TArg0, TArg1, TArg2> entryAction) {
         assert entryAction != null : ENTRY_ACTION_IS_NULL;
-        return onEntryFrom(trigger, new Action4<TArg0, TArg1, TArg2, Transition<S, T>>() {
-            @Override
-            public void doIt(TArg0 a0, TArg1 a1, TArg2 a2, Transition<S, T> t) {
-                entryAction.doIt(a0, a1, a2);
-            }
-        });
+        return onEntryFrom(trigger, (a0, a1, a2, t) -> entryAction.doIt(a0, a1, a2));
     }
 
     /**
@@ -509,19 +438,14 @@ public class StateConfiguration<S, T> {
      * @param <TArg2>     Type of the third trigger argument
      * @return The receiver
      */
+    @SuppressWarnings("unchecked")
     public <TArg0, TArg1, TArg2> StateConfiguration<S, T> onEntryFrom(TriggerWithParameters3<TArg0, TArg1, TArg2, T> trigger, final Action4<TArg0, TArg1, TArg2, Transition<S, T>> entryAction) {
         assert trigger != null : TRIGGER_IS_NULL;
         assert entryAction != null : ENTRY_ACTION_IS_NULL;
-        representation.addEntryAction(trigger.getTrigger(), new Action2<Transition<S, T>, Object[]>() {
-            @SuppressWarnings("unchecked")
-            @Override
-            public void doIt(Transition<S, T> t, Object[] args) {
-                entryAction.doIt(
-                        (TArg0) args[0],
-                        (TArg1) args[1],
-                        (TArg2) args[2], t);
-            }
-        });
+        representation.addEntryAction(trigger.getTrigger(), (t, args) -> entryAction.doIt(
+                (TArg0) args[0],
+                (TArg1) args[1],
+                (TArg2) args[2], t));
         return this;
     }
 
@@ -541,12 +465,7 @@ public class StateConfiguration<S, T> {
      */
     public StateConfiguration<S, T> onExit(final Action exitAction) {
         assert exitAction != null : EXIT_ACTION_IS_NULL;
-        return onExit(new Action1<Transition<S, T>>() {
-            @Override
-            public void doIt(Transition<S, T> arg1) {
-                exitAction.doIt();
-            }
-        });
+        return onExit(arg1 -> exitAction.doIt());
     }
 
     /**
@@ -727,12 +646,7 @@ public class StateConfiguration<S, T> {
      */
     public StateConfiguration<S, T> permitDynamicIf(T trigger, final Func<S> destinationStateSelector, FuncBoolean guard) {
         assert destinationStateSelector != null : DESTINATION_STATE_SELECTOR_IS_NULL;
-        return publicPermitDynamicIf(trigger, new Func2<Object[], S>() {
-            @Override
-            public S call(Object[] arg0) {
-                return destinationStateSelector.call();
-            }
-        }, guard, NO_ACTION_N);
+        return publicPermitDynamicIf(trigger, arg0 -> destinationStateSelector.call(), guard, NO_ACTION_N);
     }
 
     /**
@@ -751,18 +665,7 @@ public class StateConfiguration<S, T> {
     public StateConfiguration<S, T> permitDynamicIf(T trigger, final Func<S> destinationStateSelector, FuncBoolean guard,
                                                     final Action action) {
         assert destinationStateSelector != null : DESTINATION_STATE_SELECTOR_IS_NULL;
-        return publicPermitDynamicIf(trigger, new Func2<Object[], S>() {
-            @Override
-            public S call(Object[] arg0) {
-                return destinationStateSelector.call();
-            }
-        }, guard, new Action1<Object[]>() {
-            @SuppressWarnings("unchecked")
-            @Override
-            public void doIt(Object[] args) {
-                action.doIt();
-            }
-        });
+        return publicPermitDynamicIf(trigger, arg0 -> destinationStateSelector.call(), guard, args -> action.doIt());
     }
 
     /**
@@ -775,18 +678,12 @@ public class StateConfiguration<S, T> {
      * @param <TArg0>                  Type of the first trigger argument
      * @return The receiver
      */
+    @SuppressWarnings("unchecked")
     public <TArg0> StateConfiguration<S, T> permitDynamicIf(TriggerWithParameters1<TArg0, T> trigger, final Func2<TArg0, S> destinationStateSelector, FuncBoolean guard) {
         assert trigger != null : TRIGGER_IS_NULL;
         assert destinationStateSelector != null : DESTINATION_STATE_SELECTOR_IS_NULL;
         return publicPermitDynamicIf(
-                trigger.getTrigger(), new Func2<Object[], S>() {
-                    @SuppressWarnings("unchecked")
-                    @Override
-                    public S call(Object[] args) {
-                        return destinationStateSelector.call((TArg0) args[0]);
-
-                    }
-                },
+                trigger.getTrigger(), args -> destinationStateSelector.call((TArg0) args[0]),
                 guard, NO_ACTION_N
         );
     }
@@ -806,26 +703,14 @@ public class StateConfiguration<S, T> {
      * @param <TArg0>                  Type of the first trigger argument
      * @return The receiver
      */
+    @SuppressWarnings("unchecked")
     public <TArg0> StateConfiguration<S, T> permitDynamicIf(TriggerWithParameters1<TArg0, T> trigger, final Func2<TArg0, S> destinationStateSelector, FuncBoolean guard,
                                                             final Action1<TArg0> action) {
         assert trigger != null : TRIGGER_IS_NULL;
         assert destinationStateSelector != null : DESTINATION_STATE_SELECTOR_IS_NULL;
         return publicPermitDynamicIf(
-                trigger.getTrigger(), new Func2<Object[], S>() {
-                    @SuppressWarnings("unchecked")
-                    @Override
-                    public S call(Object[] args) {
-                        return destinationStateSelector.call((TArg0) args[0]);
-
-                    }
-                },
-                guard, new Action1<Object[]>() {
-                    @SuppressWarnings("unchecked")
-                    @Override
-                    public void doIt(Object[] args) {
-                        action.doIt((TArg0) args[0]);
-                    }
-                }
+                trigger.getTrigger(), args -> destinationStateSelector.call((TArg0) args[0]),
+                guard, args -> action.doIt((TArg0) args[0])
         );
     }
 
@@ -840,20 +725,14 @@ public class StateConfiguration<S, T> {
      * @param <TArg1>                  Type of the second trigger argument
      * @return The receiver
      */
+    @SuppressWarnings("unchecked")
     public <TArg0, TArg1> StateConfiguration<S, T> permitDynamicIf(TriggerWithParameters2<TArg0, TArg1, T> trigger, final Func3<TArg0, TArg1, S> destinationStateSelector, FuncBoolean guard) {
         assert trigger != null : TRIGGER_IS_NULL;
         assert destinationStateSelector != null : DESTINATION_STATE_SELECTOR_IS_NULL;
         return publicPermitDynamicIf(
-                trigger.getTrigger(), new Func2<Object[], S>() {
-                    @SuppressWarnings("unchecked")
-
-                    @Override
-                    public S call(Object[] args) {
-                        return destinationStateSelector.call(
-                                (TArg0) args[0],
-                                (TArg1) args[1]);
-                    }
-                },
+                trigger.getTrigger(), args -> destinationStateSelector.call(
+                        (TArg0) args[0],
+                        (TArg1) args[1]),
                 guard, NO_ACTION_N
         );
     }
@@ -874,30 +753,18 @@ public class StateConfiguration<S, T> {
      * @param <TArg1>                  Type of the second trigger argument
      * @return The receiver
      */
+    @SuppressWarnings("unchecked")
     public <TArg0, TArg1> StateConfiguration<S, T> permitDynamicIf(TriggerWithParameters2<TArg0, TArg1, T> trigger, final Func3<TArg0, TArg1, S> destinationStateSelector, FuncBoolean guard,
                                                                    final Action2<TArg0, TArg1> action) {
         assert trigger != null : TRIGGER_IS_NULL;
         assert destinationStateSelector != null : DESTINATION_STATE_SELECTOR_IS_NULL;
         return publicPermitDynamicIf(
-                trigger.getTrigger(), new Func2<Object[], S>() {
-                    @SuppressWarnings("unchecked")
-
-                    @Override
-                    public S call(Object[] args) {
-                        return destinationStateSelector.call(
-                                (TArg0) args[0],
-                                (TArg1) args[1]);
-                    }
-                },
-                guard, new Action1<Object[]>() {
-                    @SuppressWarnings("unchecked")
-                    @Override
-                    public void doIt(Object[] args) {
-                        action.doIt(
-                                (TArg0) args[0],
-                                (TArg1) args[1]);
-                    }
-                }
+                trigger.getTrigger(), args -> destinationStateSelector.call(
+                        (TArg0) args[0],
+                        (TArg1) args[1]),
+                guard, args -> action.doIt(
+                        (TArg0) args[0],
+                        (TArg1) args[1])
         );
     }
 
@@ -913,23 +780,17 @@ public class StateConfiguration<S, T> {
      * @param <TArg2>                  Type of the third trigger argument
      * @return The receiver
      */
+    @SuppressWarnings("unchecked")
     public <TArg0, TArg1, TArg2> StateConfiguration<S, T> permitDynamicIf(TriggerWithParameters3<TArg0, TArg1, TArg2, T> trigger,
                                                                           final Func4<TArg0, TArg1, TArg2, S> destinationStateSelector, FuncBoolean guard) {
         assert trigger != null : TRIGGER_IS_NULL;
         assert destinationStateSelector != null : DESTINATION_STATE_SELECTOR_IS_NULL;
         return publicPermitDynamicIf(
-                trigger.getTrigger(), new Func2<Object[], S>() {
-                    @SuppressWarnings("unchecked")
-
-                    @Override
-                    public S call(Object[] args) {
-                        return destinationStateSelector.call(
-                                (TArg0) args[0],
-                                (TArg1) args[1],
-                                (TArg2) args[2]
-                        );
-                    }
-                }, guard, NO_ACTION_N
+                trigger.getTrigger(), args -> destinationStateSelector.call(
+                        (TArg0) args[0],
+                        (TArg1) args[1],
+                        (TArg2) args[2]
+                ), guard, NO_ACTION_N
         );
     }
 
@@ -950,32 +811,20 @@ public class StateConfiguration<S, T> {
      * @param <TArg2>                  Type of the third trigger argument
      * @return The receiver
      */
+    @SuppressWarnings("unchecked")
     public <TArg0, TArg1, TArg2> StateConfiguration<S, T> permitDynamicIf(TriggerWithParameters3<TArg0, TArg1, TArg2, T> trigger,
                                                                           final Func4<TArg0, TArg1, TArg2, S> destinationStateSelector, FuncBoolean guard, final Action3<TArg0, TArg1, TArg2> action) {
         assert trigger != null : TRIGGER_IS_NULL;
         assert destinationStateSelector != null : DESTINATION_STATE_SELECTOR_IS_NULL;
         return publicPermitDynamicIf(
-                trigger.getTrigger(), new Func2<Object[], S>() {
-                    @SuppressWarnings("unchecked")
-
-                    @Override
-                    public S call(Object[] args) {
-                        return destinationStateSelector.call(
-                                (TArg0) args[0],
-                                (TArg1) args[1],
-                                (TArg2) args[2]
-                        );
-                    }
-                }, guard, new Action1<Object[]>() {
-                    @SuppressWarnings("unchecked")
-                    @Override
-                    public void doIt(Object[] args) {
-                        action.doIt(
-                                (TArg0) args[0],
-                                (TArg1) args[1],
-                                (TArg2) args[2]);
-                    }
-                }
+                trigger.getTrigger(), args -> destinationStateSelector.call(
+                        (TArg0) args[0],
+                        (TArg1) args[1],
+                        (TArg2) args[2]
+                ), guard, args -> action.doIt(
+                        (TArg0) args[0],
+                        (TArg1) args[1],
+                        (TArg2) args[2])
         );
     }
 
