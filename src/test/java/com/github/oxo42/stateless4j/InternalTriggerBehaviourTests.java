@@ -5,33 +5,15 @@ import com.github.oxo42.stateless4j.delegates.FuncBoolean;
 import com.github.oxo42.stateless4j.triggers.InternalTriggerBehaviour;
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class InternalTriggerBehaviourTests {
 
-    public static FuncBoolean returnTrue = new FuncBoolean() {
+    public static FuncBoolean returnTrue = () -> true;
 
-        @Override
-        public boolean call() {
-            return true;
-        }
-    };
+    public static FuncBoolean returnFalse = () -> false;
 
-    public static FuncBoolean returnFalse = new FuncBoolean() {
-
-        @Override
-        public boolean call() {
-            return false;
-        }
-    };
-
-    public static Action nopAction = new Action() {
-
-        @Override
-        public void doIt() {
-        }
+    public static Action nopAction = () -> {
     };
 
     @Test

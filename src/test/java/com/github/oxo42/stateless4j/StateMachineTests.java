@@ -1,10 +1,6 @@
 package com.github.oxo42.stateless4j;
 
 import com.github.oxo42.stateless4j.delegates.Action;
-import com.github.oxo42.stateless4j.delegates.Action2;
-import com.github.oxo42.stateless4j.delegates.Action3;
-import com.github.oxo42.stateless4j.delegates.FuncBoolean;
-import com.github.oxo42.stateless4j.transitions.Transition;
 import com.github.oxo42.stateless4j.triggers.TriggerWithParameters1;
 import com.github.oxo42.stateless4j.triggers.TriggerWithParameters2;
 import org.junit.Test;
@@ -53,7 +49,7 @@ public class StateMachineTests {
     @Test
     public void InitialStateIsCurrent() {
         State initial = State.B;
-        StateMachine<State, Trigger> sm = new StateMachine<>(initial, new StateMachineConfig<State, Trigger>());
+        StateMachine<State, Trigger> sm = new StateMachine<>(initial, new StateMachineConfig<>());
         assertEquals(initial, sm.getState());
     }
 
@@ -130,13 +126,7 @@ public class StateMachineTests {
         StateMachineConfig<State, Trigger> config = new StateMachineConfig<>();
 
         config.configure(State.B)
-                .permitIf(Trigger.X, State.A, new FuncBoolean() {
-
-                    @Override
-                    public boolean call() {
-                        return false;
-                    }
-                });
+                .permitIf(Trigger.X, State.A, () -> false);
 
         StateMachine<State, Trigger> sm = new StateMachine<>(State.B, config);
 
@@ -193,15 +183,12 @@ public class StateMachineTests {
         fired = false;
         entryArgS = null;
         StateMachine<State, Trigger> sm = new StateMachine<>(State.B, config);
-        sm.onUnhandledTrigger(new Action3<State, Trigger, Object[]>() {
-            @Override
-            public void doIt(State trigger, Trigger state, Object[] args) {
-                fired = true;
-                entryArgS = (String) args[0];
-            }
+        sm.onUnhandledTrigger((trigger, state, args) -> {
+            fired = true;
+            entryArgS = (String) args[0];
         });
 
-        sm.fire(new TriggerWithParameters1<>(Trigger.X, String.class),"Param");
+        sm.fire(new TriggerWithParameters1<>(Trigger.X, String.class), "Param");
 
         assertTrue(fired);
         assertEquals(entryArgS, "Param");
@@ -212,13 +199,7 @@ public class StateMachineTests {
         StateMachineConfig<State, Trigger> config = new StateMachineConfig<>();
 
         config.configure(State.B)
-                .onEntry(new Action() {
-
-                    @Override
-                    public void doIt() {
-                        setFired();
-                    }
-                })
+                .onEntry(() -> setFired())
                 .permitReentry(Trigger.X);
 
         fired = false;
@@ -260,10 +241,7 @@ public class StateMachineTests {
                 .permit(Trigger.X, State.C);
 
             sm.configure(State.C)
-                .onEntry(new Action2<Transition<State,Trigger>, Object[]>() {
-                	public void doIt(Transition<State, Trigger> trans, Object[] args) {
-                		receivedArgs = args;
-				}});
+                    .onEntry((trans, args) -> receivedArgs = args);
 
             String suppliedArgS = "something";
             int suppliedArgI = 42;
