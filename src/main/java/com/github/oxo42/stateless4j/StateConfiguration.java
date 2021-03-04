@@ -1,32 +1,26 @@
 package com.github.oxo42.stateless4j;
 
-import com.github.oxo42.stateless4j.delegates.*;
-import com.github.oxo42.stateless4j.transitions.Transition;
-import com.github.oxo42.stateless4j.transitions.TransitioningTriggerBehaviour;
-import com.github.oxo42.stateless4j.triggers.*;
-
 import java.util.Objects;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
-public class StateConfiguration<S, T> {
-    private static final String GUARD_IS_NULL = "guard is null";
-    private static final String ENTRY_ACTION_IS_NULL = "entryAction is null";
-    private static final String EXIT_ACTION_IS_NULL = "exitAction is null";
-    private static final String ACTION_IS_NULL = "action is null";
-    private static final String TRIGGER_IS_NULL = "trigger is null";
-    private static final String DESTINATION_STATE_SELECTOR_IS_NULL = "destinationStateSelector is null";
+public class StateConfiguration<S, T, C> {
 
-    private static final FuncBoolean NO_GUARD = () -> true;
-    private static final Action NO_ACTION = () -> {
-    };
-    private static final Action1<Object[]> NO_ACTION_N = args -> {
-    };
+    private static final String GUARD_IS_NULL = "guard must not be null";
+    private static final String ENTRY_ACTION_IS_NULL = "entryAction must not be null";
+    private static final String EXIT_ACTION_IS_NULL = "exitAction must not be null";
+    private static final String ACTION_IS_NULL = "action must not be null";
+    private static final String TRIGGER_IS_NULL = "trigger must not be null";
+    private static final String DESTINATION_STATE_SELECTOR_IS_NULL = "destinationStateSelector must not be null";
 
-    private final StateRepresentation<S, T> representation;
-    private final Func2<S, StateRepresentation<S, T>> lookup;
+    private final StateRepresentation<S, T, C> representation;
+    private final Function<S, StateRepresentation<S, T, C>> lookup;
 
-    public StateConfiguration(final StateRepresentation<S, T> representation, final Func2<S, StateRepresentation<S, T>> lookup) {
-        Objects.requireNonNull(representation, "representation is null");
-        Objects.requireNonNull(lookup, "lookup is null");
+    public StateConfiguration(final StateRepresentation<S, T, C> representation, final Function<S, StateRepresentation<S, T, C>> lookup) {
+        Objects.requireNonNull(representation, "representation must not be null");
+        Objects.requireNonNull(lookup, "lookup must not be null");
         this.representation = representation;
         this.lookup = lookup;
     }
@@ -34,11 +28,11 @@ public class StateConfiguration<S, T> {
     /**
      * Accept the specified trigger and transition to the destination state
      *
-     * @param trigger          The accepted trigger
+     * @param trigger The accepted trigger
      * @param destinationState The state that the trigger will cause a transition to
      * @return The receiver
      */
-    public StateConfiguration<S, T> permit(T trigger, S destinationState) {
+    public StateConfiguration<S, T, C> permit(T trigger, S destinationState) {
         enforceNotIdentityTransition(destinationState);
         return publicPermit(trigger, destinationState);
     }
@@ -55,7 +49,7 @@ public class StateConfiguration<S, T> {
      * @param action           The action to be performed "during" transition
      * @return The receiver
      */
-    public StateConfiguration<S, T> permit(T trigger, S destinationState, final Action action) {
+    public StateConfiguration<S, T, C> permit(T trigger, S destinationState, final Consumer<C> action) {
         enforceNotIdentityTransition(destinationState);
         return publicPermit(trigger, destinationState, action);
     }
@@ -68,7 +62,7 @@ public class StateConfiguration<S, T> {
      * @param guard            Function that must return true in order for the trigger to be accepted
      * @return The receiver
      */
-    public StateConfiguration<S, T> permitIf(T trigger, S destinationState, FuncBoolean guard) {
+    public StateConfiguration<S, T, C> permitIf(T trigger, S destinationState, Predicate<C> guard) {
         enforceNotIdentityTransition(destinationState);
         return publicPermitIf(trigger, destinationState, guard);
     }
@@ -86,7 +80,7 @@ public class StateConfiguration<S, T> {
      * @param action           The action to be performed "during" transition
      * @return The receiver
      */
-    public StateConfiguration<S, T> permitIf(T trigger, S destinationState, FuncBoolean guard, Action action) {
+    public StateConfiguration<S, T, C> permitIf(T trigger, S destinationState, Predicate<C> guard, Consumer<C> action) {
         enforceNotIdentityTransition(destinationState);
         return publicPermitIf(trigger, destinationState, guard, action);
     }
@@ -99,9 +93,9 @@ public class StateConfiguration<S, T> {
      * @param guard            Function that must return true in order for the trigger to be accepted
      * @return The receiver
      */
-    public StateConfiguration<S, T> permitIfElseIgnore(T trigger, S destinationState, final FuncBoolean guard) {
+    public StateConfiguration<S, T, C> permitIfElseIgnore(T trigger, S destinationState, final Predicate<C> guard) {
         enforceNotIdentityTransition(destinationState);
-        ignoreIf(trigger, () -> !guard.call());
+        ignoreIf(trigger, guard.negate());
         return publicPermitIf(trigger, destinationState, guard);
     }
 
@@ -118,9 +112,9 @@ public class StateConfiguration<S, T> {
      * @param action           The action to be performed "during" transition
      * @return The receiver
      */
-    public StateConfiguration<S, T> permitIfElseIgnore(T trigger, S destinationState, final FuncBoolean guard, Action action) {
+    public StateConfiguration<S, T, C> permitIfElseIgnore(T trigger, S destinationState, final Predicate<C> guard, Consumer<C> action) {
         enforceNotIdentityTransition(destinationState);
-        ignoreIf(trigger, () -> !guard.call());
+        ignoreIf(trigger, guard.negate());
         return publicPermitIf(trigger, destinationState, guard, action);
     }
 
@@ -135,8 +129,8 @@ public class StateConfiguration<S, T> {
      * @param action  The action to be performed
      * @return The receiver
      */
-    public StateConfiguration<S, T> permitInternal(T trigger, Action action) {
-        return permitInternalIf(trigger, NO_GUARD, action);
+    public StateConfiguration<S, T, C> permitInternal(T trigger, Consumer<C> action) {
+        return permitInternalIf(trigger, x -> true, action);
     }
 
     /**
@@ -155,11 +149,11 @@ public class StateConfiguration<S, T> {
      * @param action  The action to be performed
      * @return The receiver
      */
-    public StateConfiguration<S, T> permitInternalIf(T trigger, FuncBoolean guard, Action action) {
+    public StateConfiguration<S, T, C> permitInternalIf(T trigger, Predicate<C> guard, Consumer<C> action) {
         Objects.requireNonNull(guard, GUARD_IS_NULL);
         Objects.requireNonNull(action, ACTION_IS_NULL);
         representation.addTriggerBehaviour(new InternalTriggerBehaviour<>(
-                trigger, guard, action));
+            trigger, guard, action));
         return this;
     }
 
@@ -173,7 +167,7 @@ public class StateConfiguration<S, T> {
      * @param trigger The accepted trigger
      * @return The receiver
      */
-    public StateConfiguration<S, T> permitReentry(T trigger) {
+    public StateConfiguration<S, T, C> permitReentry(T trigger) {
         return publicPermit(trigger, representation.getUnderlyingState());
     }
 
@@ -191,7 +185,7 @@ public class StateConfiguration<S, T> {
      * @param action  The action to be performed "during" transition
      * @return The receiver
      */
-    public StateConfiguration<S, T> permitReentry(T trigger, Action action) {
+    public StateConfiguration<S, T, C> permitReentry(T trigger, Consumer<C> action) {
         return publicPermit(trigger, representation.getUnderlyingState(), action);
     }
 
@@ -206,7 +200,7 @@ public class StateConfiguration<S, T> {
      * @param guard   Function that must return true in order for the trigger to be accepted
      * @return The receiver
      */
-    public StateConfiguration<S, T> permitReentryIf(T trigger, FuncBoolean guard) {
+    public StateConfiguration<S, T, C> permitReentryIf(T trigger, Predicate<C> guard) {
         return publicPermitIf(trigger, representation.getUnderlyingState(), guard);
     }
 
@@ -224,7 +218,7 @@ public class StateConfiguration<S, T> {
      * @param guard   Function that must return true in order for the trigger to be accepted
      * @return The receiver
      */
-    public StateConfiguration<S, T> permitReentryIf(T trigger, FuncBoolean guard, Action action) {
+    public StateConfiguration<S, T, C> permitReentryIf(T trigger, Predicate<C> guard, Consumer<C> action) {
         return publicPermitIf(trigger, representation.getUnderlyingState(), guard, action);
     }
 
@@ -234,8 +228,8 @@ public class StateConfiguration<S, T> {
      * @param trigger The trigger to ignore
      * @return The receiver
      */
-    public StateConfiguration<S, T> ignore(T trigger) {
-        return ignoreIf(trigger, NO_GUARD);
+    public StateConfiguration<S, T, C> ignore(T trigger) {
+        return ignoreIf(trigger, x -> true);
     }
 
     /**
@@ -245,9 +239,10 @@ public class StateConfiguration<S, T> {
      * @param guard   Function that must return true in order for the trigger to be ignored
      * @return The receiver
      */
-    public StateConfiguration<S, T> ignoreIf(T trigger, FuncBoolean guard) {
+    public StateConfiguration<S, T, C> ignoreIf(T trigger, Predicate<C> guard) {
         Objects.requireNonNull(guard, GUARD_IS_NULL);
-        representation.addTriggerBehaviour(new InternalTriggerBehaviour<>(trigger, guard, NO_ACTION));
+        representation.addTriggerBehaviour(new InternalTriggerBehaviour<>(trigger, guard, x -> {
+        }));
         return this;
     }
 
@@ -257,9 +252,9 @@ public class StateConfiguration<S, T> {
      * @param entryAction Action to execute
      * @return The receiver
      */
-    public StateConfiguration<S, T> onEntry(final Action entryAction) {
+    public StateConfiguration<S, T, C> onEntry(final Consumer<C> entryAction) {
         Objects.requireNonNull(entryAction, ENTRY_ACTION_IS_NULL);
-        return onEntry(t -> entryAction.doIt());
+        return onEntry((t, c) -> entryAction.accept(c));
     }
 
     /**
@@ -268,26 +263,12 @@ public class StateConfiguration<S, T> {
      * @param entryAction Action to execute, providing details of the transition
      * @return The receiver
      */
-    public StateConfiguration<S, T> onEntry(final Action1<Transition<S, T>> entryAction) {
-        Objects.requireNonNull(entryAction, ENTRY_ACTION_IS_NULL);
-        representation.addEntryAction((arg1, arg2) -> entryAction.doIt(arg1));
-        return this;
-    }
-
-    /**
-     * Specify an action that will execute when transitioning into the configured state
-     *
-     * @param entryAction Action to execute, providing details of the transition and trigger parameters
-     * @return The receiver
-     */
-    public StateConfiguration<S, T> onEntry(final Action2<Transition<S, T>, Object[]> entryAction) {
+    public StateConfiguration<S, T, C> onEntry(final BiConsumer<Transition<S, T>, C> entryAction) {
         Objects.requireNonNull(entryAction, ENTRY_ACTION_IS_NULL);
         representation.addEntryAction(entryAction);
         return this;
     }
 
-
-
     /**
      * Specify an action that will execute when transitioning into the configured state
      *
@@ -295,9 +276,9 @@ public class StateConfiguration<S, T> {
      * @param entryAction Action to execute
      * @return The receiver
      */
-    public StateConfiguration<S, T> onEntryFrom(T trigger, final Action entryAction) {
+    public StateConfiguration<S, T, C> onEntryFrom(T trigger, final Consumer<C> entryAction) {
         Objects.requireNonNull(entryAction, ENTRY_ACTION_IS_NULL);
-        return onEntryFrom(trigger, arg1 -> entryAction.doIt());
+        return onEntryFrom(trigger, (t, c) -> entryAction.accept(c));
     }
 
     /**
@@ -307,156 +288,10 @@ public class StateConfiguration<S, T> {
      * @param entryAction Action to execute, providing details of the transition
      * @return The receiver
      */
-    public StateConfiguration<S, T> onEntryFrom(T trigger, final Action1<Transition<S, T>> entryAction) {
+    public StateConfiguration<S, T, C> onEntryFrom(T trigger, final BiConsumer<Transition<S, T>, C> entryAction) {
         Objects.requireNonNull(entryAction, ENTRY_ACTION_IS_NULL);
-        representation.addEntryAction(trigger, (arg1, arg2) -> entryAction.doIt(arg1));
+        representation.addEntryAction(trigger, entryAction);
         return this;
-    }
-
-    /**
-     * Specify an action that will execute when transitioning into the configured state
-     *
-     * @param trigger     The trigger by which the state must be entered in order for the action to execute
-     * @param entryAction Action to execute, providing details of the transition
-     * @param <TArg0>     Type of the first trigger argument
-     * @return The receiver
-     */
-    public <TArg0> StateConfiguration<S, T> onEntryFrom(TriggerWithParameters1<TArg0, T> trigger, final Action1<TArg0> entryAction) {
-        Objects.requireNonNull(entryAction, ENTRY_ACTION_IS_NULL);
-        return onEntryFrom(trigger, (arg1, arg2) -> entryAction.doIt(arg1));
-    }
-
-    /**
-     * @deprecated  replaced by {@link #onEntryFrom(TriggerWithParameters1, Action1)} ()}
-     */
-    @Deprecated
-    public <TArg0> StateConfiguration<S, T> onEntryFrom(TriggerWithParameters1<TArg0, T> trigger, final Action1<TArg0> entryAction, final Class<TArg0> classe0) {
-        return onEntryFrom(trigger, entryAction);
-    }
-
-    /**
-     * Specify an action that will execute when transitioning into the configured state
-     *
-     * @param trigger     The trigger by which the state must be entered in order for the action to execute
-     * @param entryAction Action to execute, providing details of the transition
-     * @param <TArg0>     Type of the first trigger argument
-     * @return The receiver
-     */
-    @SuppressWarnings("unchecked")
-    public <TArg0> StateConfiguration<S, T> onEntryFrom(TriggerWithParameters1<TArg0, T> trigger, final Action2<TArg0, Transition<S, T>> entryAction) {
-        Objects.requireNonNull(trigger, TRIGGER_IS_NULL);
-        Objects.requireNonNull(entryAction, ENTRY_ACTION_IS_NULL);
-        representation.addEntryAction(trigger.getTrigger(), (t, arg2) -> entryAction.doIt((TArg0) arg2[0], t));
-        return this;
-    }
-
-    /**
-     * @deprecated  replaced by {@link #onEntryFrom(TriggerWithParameters1, Action2)} ()}
-     */
-    @Deprecated
-    public <TArg0> StateConfiguration<S, T> onEntryFrom(TriggerWithParameters1<TArg0, T> trigger, final Action2<TArg0, Transition<S, T>> entryAction, final Class<TArg0> classe0) {
-        return onEntryFrom(trigger, entryAction);
-    }
-
-    /**
-     * Specify an action that will execute when transitioning into the configured state
-     *
-     * @param trigger     The trigger by which the state must be entered in order for the action to execute
-     * @param entryAction Action to execute, providing details of the transition
-     * @param <TArg0>     Type of the first trigger argument
-     * @param <TArg1>     Type of the second trigger argument
-     * @return The receiver
-     */
-    public <TArg0, TArg1> StateConfiguration<S, T> onEntryFrom(TriggerWithParameters2<TArg0, TArg1, T> trigger, final Action2<TArg0, TArg1> entryAction) {
-        Objects.requireNonNull(entryAction, ENTRY_ACTION_IS_NULL);
-        return onEntryFrom(trigger, (a0, a1, t) -> entryAction.doIt(a0, a1));
-    }
-
-    /**
-     * @deprecated  replaced by {@link #onEntryFrom(TriggerWithParameters2, Action2)} ()}
-     */
-    @Deprecated
-    public <TArg0, TArg1> StateConfiguration<S, T> onEntryFrom(TriggerWithParameters2<TArg0, TArg1, T> trigger, final Action2<TArg0, TArg1> entryAction, final Class<TArg0> classe0, final Class<TArg1> classe1) {
-        return onEntryFrom(trigger, entryAction);
-    }
-
-    /**
-     * Specify an action that will execute when transitioning into the configured state
-     *
-     * @param trigger     The trigger by which the state must be entered in order for the action to execute
-     * @param entryAction Action to execute, providing details of the transition
-     * @param <TArg0>     Type of the first trigger argument
-     * @param <TArg1>     Type of the second trigger argument
-     * @return The receiver
-     */
-    @SuppressWarnings("unchecked")
-    public <TArg0, TArg1> StateConfiguration<S, T> onEntryFrom(TriggerWithParameters2<TArg0, TArg1, T> trigger, final Action3<TArg0, TArg1, Transition<S, T>> entryAction) {
-        Objects.requireNonNull(trigger, TRIGGER_IS_NULL);
-        Objects.requireNonNull(entryAction, ENTRY_ACTION_IS_NULL);
-        representation.addEntryAction(trigger.getTrigger(), (t, args) -> entryAction.doIt(
-                (TArg0) args[0],
-                (TArg1) args[1], t));
-        return this;
-    }
-
-    /**
-     * @deprecated  replaced by {@link #onEntryFrom(TriggerWithParameters2, Action3)} ()}
-     */
-    @Deprecated
-    public <TArg0, TArg1> StateConfiguration<S, T> onEntryFrom(TriggerWithParameters2<TArg0, TArg1, T> trigger, final Action3<TArg0, TArg1, Transition<S, T>> entryAction, final Class<TArg0> classe0, final Class<TArg1> classe1) {
-        return onEntryFrom(trigger, entryAction);
-    }
-
-    /**
-     * Specify an action that will execute when transitioning into the configured state
-     *
-     * @param trigger     The trigger by which the state must be entered in order for the action to execute
-     * @param entryAction Action to execute, providing details of the transition
-     * @param <TArg0>     Type of the first trigger argument
-     * @param <TArg1>     Type of the second trigger argument
-     * @param <TArg2>     Type of the third trigger argument
-     * @return The receiver
-     */
-    public <TArg0, TArg1, TArg2> StateConfiguration<S, T> onEntryFrom(TriggerWithParameters3<TArg0, TArg1, TArg2, T> trigger, final Action3<TArg0, TArg1, TArg2> entryAction) {
-        Objects.requireNonNull(entryAction, ENTRY_ACTION_IS_NULL);
-        return onEntryFrom(trigger, (a0, a1, a2, t) -> entryAction.doIt(a0, a1, a2));
-    }
-
-    /**
-     * @deprecated  replaced by {@link #onEntryFrom(TriggerWithParameters3, Action3)} ()}
-     */
-    @Deprecated
-    public <TArg0, TArg1, TArg2> StateConfiguration<S, T> onEntryFrom(TriggerWithParameters3<TArg0, TArg1, TArg2, T> trigger, final Action3<TArg0, TArg1, TArg2> entryAction, final Class<TArg0> classe0, final Class<TArg1> classe1, final Class<TArg2> classe2) {
-        return onEntryFrom(trigger, entryAction);
-    }
-
-    /**
-     * Specify an action that will execute when transitioning into the configured state
-     *
-     * @param trigger     The trigger by which the state must be entered in order for the action to execute
-     * @param entryAction Action to execute, providing details of the transition
-     * @param <TArg0>     Type of the first trigger argument
-     * @param <TArg1>     Type of the second trigger argument
-     * @param <TArg2>     Type of the third trigger argument
-     * @return The receiver
-     */
-    @SuppressWarnings("unchecked")
-    public <TArg0, TArg1, TArg2> StateConfiguration<S, T> onEntryFrom(TriggerWithParameters3<TArg0, TArg1, TArg2, T> trigger, final Action4<TArg0, TArg1, TArg2, Transition<S, T>> entryAction) {
-        Objects.requireNonNull(trigger, TRIGGER_IS_NULL);
-        Objects.requireNonNull(entryAction, ENTRY_ACTION_IS_NULL);
-        representation.addEntryAction(trigger.getTrigger(), (t, args) -> entryAction.doIt(
-                (TArg0) args[0],
-                (TArg1) args[1],
-                (TArg2) args[2], t));
-        return this;
-    }
-
-    /**
-     * @deprecated  replaced by {@link #onEntryFrom(TriggerWithParameters3, Action4)} ()}
-     */
-    @Deprecated
-    public <TArg0, TArg1, TArg2> StateConfiguration<S, T> onEntryFrom(TriggerWithParameters3<TArg0, TArg1, TArg2, T> trigger, final Action4<TArg0, TArg1, TArg2, Transition<S, T>> entryAction, final Class<TArg0> classe0, final Class<TArg1> classe1, final Class<TArg2> classe2) {
-        return onEntryFrom(trigger, entryAction);
     }
 
     /**
@@ -465,9 +300,9 @@ public class StateConfiguration<S, T> {
      * @param exitAction Action to execute
      * @return The receiver
      */
-    public StateConfiguration<S, T> onExit(final Action exitAction) {
+    public StateConfiguration<S, T, C> onExit(final Consumer<C> exitAction) {
         Objects.requireNonNull(exitAction, EXIT_ACTION_IS_NULL);
-        return onExit(arg1 -> exitAction.doIt());
+        return onExit((t, c) -> exitAction.accept(c));
     }
 
     /**
@@ -476,7 +311,7 @@ public class StateConfiguration<S, T> {
      * @param exitAction Action to execute
      * @return The receiver
      */
-    public StateConfiguration<S, T> onExit(Action1<Transition<S, T>> exitAction) {
+    public StateConfiguration<S, T, C> onExit(BiConsumer<Transition<S, T>, C> exitAction) {
         Objects.requireNonNull(exitAction, EXIT_ACTION_IS_NULL);
         representation.addExitAction(exitAction);
         return this;
@@ -494,8 +329,8 @@ public class StateConfiguration<S, T> {
      * @param superstate The superstate
      * @return The receiver
      */
-    public StateConfiguration<S, T> substateOf(S superstate) {
-        StateRepresentation<S, T> superRepresentation = lookup.call(superstate);
+    public StateConfiguration<S, T, C> substateOf(S superstate) {
+        StateRepresentation<S, T, C> superRepresentation = lookup.apply(superstate);
         representation.setSuperstate(superRepresentation);
         superRepresentation.addSubstate(representation);
         return this;
@@ -509,9 +344,9 @@ public class StateConfiguration<S, T> {
      * @param destinationStateSelector Function to calculate the state that the trigger will cause a transition to
      * @return The receiver
      */
-    public StateConfiguration<S, T> permitDynamic(T trigger, final Func<S> destinationStateSelector) {
-        return permitDynamicIf(trigger, destinationStateSelector, NO_GUARD);
-    }
+    //public StateConfiguration<S, T, C> permitDynamic(T trigger, final Func<S> destinationStateSelector) {
+    //    return permitDynamicIf(trigger, destinationStateSelector, x -> true);
+    //}
 
     /**
      * Accept the specified trigger and transition to the destination state, calculated dynamically by the supplied
@@ -525,9 +360,9 @@ public class StateConfiguration<S, T> {
      * @param action                   The action to be performed "during" transition
      * @return The receiver
      */
-    public StateConfiguration<S, T> permitDynamic(T trigger, final Func<S> destinationStateSelector, Action action) {
-        return permitDynamicIf(trigger, destinationStateSelector, NO_GUARD, action);
-    }
+    //public StateConfiguration<S, T, C> permitDynamic(T trigger, final Func<S> destinationStateSelector, Consumer<C> action) {
+    //    return permitDynamicIf(trigger, destinationStateSelector, x -> true, action);
+    //}
 
     /**
      * Accept the specified trigger and transition to the destination state, calculated dynamically by the supplied
@@ -535,341 +370,75 @@ public class StateConfiguration<S, T> {
      *
      * @param trigger                  The accepted trigger
      * @param destinationStateSelector Function to calculate the state that the trigger will cause a transition to
-     * @param <TArg0>                  Type of the first trigger argument
+     * @param guard                    Function that must return true in order for the  trigger to be accepted
      * @return The receiver
      */
-    public <TArg0> StateConfiguration<S, T> permitDynamic(TriggerWithParameters1<TArg0, T> trigger, Func2<TArg0, S> destinationStateSelector) {
-        return permitDynamicIf(trigger, destinationStateSelector, NO_GUARD);
-    }
+    //public StateConfiguration<S, T, C> permitDynamicIf(T trigger, final Func<S> destinationStateSelector, Predicate<C> guard) {
+    //    Objects.requireNonNull(destinationStateSelector, DESTINATION_STATE_SELECTOR_IS_NULL);
+    //    return publicPermitDynamicIf(trigger, arg0 -> destinationStateSelector.get(), guard, (c) -> {});
+    //}
 
     /**
-     * Accept the specified trigger and transition to the destination state, calculated dynamically by the supplied
-     * function
+     * Accept the specified trigger and transition to the destination state, calculated dynamically by the supplied function
      * <p>
-     * Additionally a given action is performed when transitioning. This action will be called after
-     * the onExit action and before the onEntry action (of the re-entered state). The parameter of the
-     * trigger will be given to this action.
+     * Additionally a given action is performed when transitioning. This action will be called after the onExit action of the current state and before the onEntry action of the destination state.
      *
-     * @param trigger                  The accepted trigger
+     * @param trigger The accepted trigger
      * @param destinationStateSelector Function to calculate the state that the trigger will cause a transition to
-     * @param action                   The action to be performed "during" transition
-     * @param <TArg0>                  Type of the first trigger argument
+     * @param guard Function that must return true in order for the  trigger to be accepted
+     * @param action The action to be performed "during" transition
      * @return The receiver
      */
-    public <TArg0> StateConfiguration<S, T> permitDynamic(TriggerWithParameters1<TArg0, T> trigger,
-                                                          Func2<TArg0, S> destinationStateSelector, Action1<TArg0> action) {
-        return permitDynamicIf(trigger, destinationStateSelector, NO_GUARD, action);
-    }
-
-    /**
-     * Accept the specified trigger and transition to the destination state, calculated dynamically by the supplied
-     * function
-     *
-     * @param trigger                  The accepted trigger
-     * @param destinationStateSelector Function to calculate the state that the trigger will cause a transition to
-     * @param <TArg0>                  Type of the first trigger argument
-     * @param <TArg1>                  Type of the second trigger argument
-     * @return The receiver
-     */
-    public <TArg0, TArg1> StateConfiguration<S, T> permitDynamic(
-            TriggerWithParameters2<TArg0, TArg1, T> trigger,
-            Func3<TArg0, TArg1, S> destinationStateSelector) {
-        return permitDynamicIf(trigger, destinationStateSelector, NO_GUARD);
-    }
-
-
-    /**
-     * Accept the specified trigger and transition to the destination state, calculated dynamically by the supplied
-     * function
-     * <p>
-     * Additionally a given action is performed when transitioning. This action will be called after
-     * the onExit action and before the onEntry action (of the re-entered state). The parameters of the
-     * trigger will be given to this action.
-     *
-     * @param trigger                  The accepted trigger
-     * @param destinationStateSelector Function to calculate the state that the trigger will cause a transition to
-     * @param action                   The action to be performed "during" transition
-     * @param <TArg0>                  Type of the first trigger argument
-     * @param <TArg1>                  Type of the second trigger argument
-     * @return The receiver
-     */
-    public <TArg0, TArg1> StateConfiguration<S, T> permitDynamic(
-            TriggerWithParameters2<TArg0, TArg1, T> trigger,
-            Func3<TArg0, TArg1, S> destinationStateSelector, Action2<TArg0, TArg1> action) {
-        return permitDynamicIf(trigger, destinationStateSelector, NO_GUARD, action);
-    }
-
-    /**
-     * Accept the specified trigger and transition to the destination state, calculated dynamically by the supplied
-     * function
-     *
-     * @param trigger                  The accepted trigger
-     * @param destinationStateSelector Function to calculate the state that the trigger will cause a transition to
-     * @param <TArg0>                  Type of the first trigger argument
-     * @param <TArg1>                  Type of the second trigger argument
-     * @param <TArg2>                  Type of the third trigger argument
-     * @return The receiver
-     */
-    public <TArg0, TArg1, TArg2> StateConfiguration<S, T> permitDynamic(TriggerWithParameters3<TArg0, TArg1, TArg2, T> trigger, final Func4<TArg0, TArg1, TArg2, S> destinationStateSelector) {
-        return permitDynamicIf(trigger, destinationStateSelector, NO_GUARD);
-    }
-
-
-    /**
-     * Accept the specified trigger and transition to the destination state, calculated dynamically by the supplied
-     * function
-     * <p>
-     * Additionally a given action is performed when transitioning. This action will be called after
-     * the onExit action and before the onEntry action (of the re-entered state). The parameters of the
-     * trigger will be given to this action.
-     *
-     * @param trigger                  The accepted trigger
-     * @param destinationStateSelector Function to calculate the state that the trigger will cause a transition to
-     * @param action                   The action to be performed "during" transition
-     * @param <TArg0>                  Type of the first trigger argument
-     * @param <TArg1>                  Type of the second trigger argument
-     * @param <TArg2>                  Type of the third trigger argument
-     * @return The receiver
-     */
-    public <TArg0, TArg1, TArg2> StateConfiguration<S, T> permitDynamic(TriggerWithParameters3<TArg0, TArg1, TArg2, T> trigger,
-                                                                        final Func4<TArg0, TArg1, TArg2, S> destinationStateSelector,
-                                                                        final Action3<TArg0, TArg1, TArg2> action) {
-        return permitDynamicIf(trigger, destinationStateSelector, NO_GUARD, action);
-    }
-
-    /**
-     * Accept the specified trigger and transition to the destination state, calculated dynamically by the supplied
-     * function
-     *
-     * @param trigger                  The accepted trigger
-     * @param destinationStateSelector Function to calculate the state that the trigger will cause a transition to
-     * @param guard                    Function that must return true in order for the  trigger to be accepted
-     * @return The receiver
-     */
-    public StateConfiguration<S, T> permitDynamicIf(T trigger, final Func<S> destinationStateSelector, FuncBoolean guard) {
-        Objects.requireNonNull(destinationStateSelector, DESTINATION_STATE_SELECTOR_IS_NULL);
-        return publicPermitDynamicIf(trigger, arg0 -> destinationStateSelector.call(), guard, NO_ACTION_N);
-    }
-
-    /**
-     * Accept the specified trigger and transition to the destination state, calculated dynamically by the supplied
-     * function
-     * <p>
-     * Additionally a given action is performed when transitioning. This action will be called after
-     * the onExit action of the current state and before the onEntry action of the destination state.
-     *
-     * @param trigger                  The accepted trigger
-     * @param destinationStateSelector Function to calculate the state that the trigger will cause a transition to
-     * @param guard                    Function that must return true in order for the  trigger to be accepted
-     * @param action                   The action to be performed "during" transition
-     * @return The receiver
-     */
-    public StateConfiguration<S, T> permitDynamicIf(T trigger, final Func<S> destinationStateSelector, FuncBoolean guard,
-                                                    final Action action) {
-        Objects.requireNonNull(destinationStateSelector, DESTINATION_STATE_SELECTOR_IS_NULL);
-        return publicPermitDynamicIf(trigger, arg0 -> destinationStateSelector.call(), guard, args -> action.doIt());
-    }
-
-    /**
-     * Accept the specified trigger and transition to the destination state, calculated dynamically by the supplied
-     * function
-     *
-     * @param trigger                  The accepted trigger
-     * @param destinationStateSelector Function to calculate the state that the trigger will cause a transition to
-     * @param guard                    Function that must return true in order for the  trigger to be accepted
-     * @param <TArg0>                  Type of the first trigger argument
-     * @return The receiver
-     */
-    @SuppressWarnings("unchecked")
-    public <TArg0> StateConfiguration<S, T> permitDynamicIf(TriggerWithParameters1<TArg0, T> trigger, final Func2<TArg0, S> destinationStateSelector, FuncBoolean guard) {
-        Objects.requireNonNull(trigger, TRIGGER_IS_NULL);
-        Objects.requireNonNull(destinationStateSelector, DESTINATION_STATE_SELECTOR_IS_NULL);
-        return publicPermitDynamicIf(
-                trigger.getTrigger(), args -> destinationStateSelector.call((TArg0) args[0]),
-                guard, NO_ACTION_N
-        );
-    }
-
-    /**
-     * Accept the specified trigger and transition to the destination state, calculated dynamically by the supplied
-     * function
-     * <p>
-     * Additionally a given action is performed when transitioning. This action will be called after
-     * the onExit action of the current state and before the onEntry action of the destination state.
-     * The parameter of the trigger will be given to this action.
-     *
-     * @param trigger                  The accepted trigger
-     * @param destinationStateSelector Function to calculate the state that the trigger will cause a transition to
-     * @param guard                    Function that must return true in order for the  trigger to be accepted
-     * @param action                   The action to be performed "during" transition
-     * @param <TArg0>                  Type of the first trigger argument
-     * @return The receiver
-     */
-    @SuppressWarnings("unchecked")
-    public <TArg0> StateConfiguration<S, T> permitDynamicIf(TriggerWithParameters1<TArg0, T> trigger, final Func2<TArg0, S> destinationStateSelector, FuncBoolean guard,
-                                                            final Action1<TArg0> action) {
-        Objects.requireNonNull(trigger, TRIGGER_IS_NULL);
-        Objects.requireNonNull(destinationStateSelector, DESTINATION_STATE_SELECTOR_IS_NULL);
-        return publicPermitDynamicIf(
-                trigger.getTrigger(), args -> destinationStateSelector.call((TArg0) args[0]),
-                guard, args -> action.doIt((TArg0) args[0])
-        );
-    }
-
-    /**
-     * Accept the specified trigger and transition to the destination state, calculated dynamically by the supplied
-     * function
-     *
-     * @param trigger                  The accepted trigger
-     * @param destinationStateSelector Function to calculate the state that the trigger will cause a transition to
-     * @param guard                    Function that must return true in order for the  trigger to be accepted
-     * @param <TArg0>                  Type of the first trigger argument
-     * @param <TArg1>                  Type of the second trigger argument
-     * @return The receiver
-     */
-    @SuppressWarnings("unchecked")
-    public <TArg0, TArg1> StateConfiguration<S, T> permitDynamicIf(TriggerWithParameters2<TArg0, TArg1, T> trigger, final Func3<TArg0, TArg1, S> destinationStateSelector, FuncBoolean guard) {
-        Objects.requireNonNull(trigger, TRIGGER_IS_NULL);
-        Objects.requireNonNull(destinationStateSelector, DESTINATION_STATE_SELECTOR_IS_NULL);
-        return publicPermitDynamicIf(
-                trigger.getTrigger(), args -> destinationStateSelector.call(
-                        (TArg0) args[0],
-                        (TArg1) args[1]),
-                guard, NO_ACTION_N
-        );
-    }
-
-    /**
-     * Accept the specified trigger and transition to the destination state, calculated dynamically by the supplied
-     * function
-     * <p>
-     * Additionally a given action is performed when transitioning. This action will be called after
-     * the onExit action of the current state and before the onEntry action of the destination state.
-     * The parameters of the trigger will be given to this action.
-     *
-     * @param trigger                  The accepted trigger
-     * @param destinationStateSelector Function to calculate the state that the trigger will cause a transition to
-     * @param guard                    Function that must return true in order for the  trigger to be accepted
-     * @param action                   The action to be performed "during" transition
-     * @param <TArg0>                  Type of the first trigger argument
-     * @param <TArg1>                  Type of the second trigger argument
-     * @return The receiver
-     */
-    @SuppressWarnings("unchecked")
-    public <TArg0, TArg1> StateConfiguration<S, T> permitDynamicIf(TriggerWithParameters2<TArg0, TArg1, T> trigger, final Func3<TArg0, TArg1, S> destinationStateSelector, FuncBoolean guard,
-                                                                   final Action2<TArg0, TArg1> action) {
-        Objects.requireNonNull(trigger, TRIGGER_IS_NULL);
-        Objects.requireNonNull(destinationStateSelector, DESTINATION_STATE_SELECTOR_IS_NULL);
-        return publicPermitDynamicIf(
-                trigger.getTrigger(), args -> destinationStateSelector.call(
-                        (TArg0) args[0],
-                        (TArg1) args[1]),
-                guard, args -> action.doIt(
-                        (TArg0) args[0],
-                        (TArg1) args[1])
-        );
-    }
-
-    /**
-     * Accept the specified trigger and transition to the destination state, calculated dynamically by the supplied
-     * function
-     *
-     * @param trigger                  The accepted trigger
-     * @param destinationStateSelector Function to calculate the state that the trigger will cause a transition to
-     * @param guard                    Function that must return true in order for the  trigger to be accepted
-     * @param <TArg0>                  Type of the first trigger argument
-     * @param <TArg1>                  Type of the second trigger argument
-     * @param <TArg2>                  Type of the third trigger argument
-     * @return The receiver
-     */
-    @SuppressWarnings("unchecked")
-    public <TArg0, TArg1, TArg2> StateConfiguration<S, T> permitDynamicIf(TriggerWithParameters3<TArg0, TArg1, TArg2, T> trigger,
-                                                                          final Func4<TArg0, TArg1, TArg2, S> destinationStateSelector, FuncBoolean guard) {
-        Objects.requireNonNull(trigger, TRIGGER_IS_NULL);
-        Objects.requireNonNull(destinationStateSelector, DESTINATION_STATE_SELECTOR_IS_NULL);
-        return publicPermitDynamicIf(
-                trigger.getTrigger(), args -> destinationStateSelector.call(
-                        (TArg0) args[0],
-                        (TArg1) args[1],
-                        (TArg2) args[2]
-                ), guard, NO_ACTION_N
-        );
-    }
-
-    /**
-     * Accept the specified trigger and transition to the destination state, calculated dynamically by the supplied
-     * function.
-     * <p>
-     * Additionally a given action is performed when transitioning. This action will be called after
-     * the onExit action of the current state and before the onEntry action of the destination state.
-     * The parameters of the trigger will be given to this action.
-     *
-     * @param trigger                  The accepted trigger
-     * @param destinationStateSelector Function to calculate the state that the trigger will cause a transition to
-     * @param guard                    Function that must return true in order for the  trigger to be accepted
-     * @param action                   The action to be performed "during" transition
-     * @param <TArg0>                  Type of the first trigger argument
-     * @param <TArg1>                  Type of the second trigger argument
-     * @param <TArg2>                  Type of the third trigger argument
-     * @return The receiver
-     */
-    @SuppressWarnings("unchecked")
-    public <TArg0, TArg1, TArg2> StateConfiguration<S, T> permitDynamicIf(TriggerWithParameters3<TArg0, TArg1, TArg2, T> trigger,
-                                                                          final Func4<TArg0, TArg1, TArg2, S> destinationStateSelector, FuncBoolean guard, final Action3<TArg0, TArg1, TArg2> action) {
-        Objects.requireNonNull(trigger, TRIGGER_IS_NULL);
-        Objects.requireNonNull(destinationStateSelector, DESTINATION_STATE_SELECTOR_IS_NULL);
-        return publicPermitDynamicIf(
-                trigger.getTrigger(), args -> destinationStateSelector.call(
-                        (TArg0) args[0],
-                        (TArg1) args[1],
-                        (TArg2) args[2]
-                ), guard, args -> action.doIt(
-                        (TArg0) args[0],
-                        (TArg1) args[1],
-                        (TArg2) args[2])
-        );
-    }
+    //public StateConfiguration<S, T, C> permitDynamicIf(T trigger, final Func<S> destinationStateSelector, Predicate<C> guard,
+    //    final Consumer<C> action) {
+    //    Objects.requireNonNull(destinationStateSelector, DESTINATION_STATE_SELECTOR_IS_NULL);
+    //    return publicPermitDynamicIf(trigger, arg0 -> destinationStateSelector.get(), guard, args -> action.accept());
+    //}
 
     void enforceNotIdentityTransition(S destination) {
         if (destination.equals(representation.getUnderlyingState())) {
-            throw new IllegalStateException("Permit() (and PermitIf()) require that the destination state is not equal to the source state. To accept a trigger without changing state, use either ignore(), permitInternal() or permitReentry().");
+            throw new IllegalStateException(
+                "Permit() (and PermitIf()) require that the destination state is not equal to the source state. To accept a trigger without changing state, use either ignore(), permitInternal() or "
+                    + "permitReentry().");
         }
     }
 
-    StateConfiguration<S, T> publicPermit(T trigger, S destinationState) {
-        return publicPermitIf(trigger, destinationState, NO_GUARD, NO_ACTION);
+    StateConfiguration<S, T, C> publicPermit(T trigger, S destinationState) {
+        return publicPermitIf(trigger, destinationState, x -> true, x -> {
+        });
     }
 
-    StateConfiguration<S, T> publicPermit(T trigger, S destinationState, Action action) {
-        return publicPermitIf(trigger, destinationState, NO_GUARD, action);
+    StateConfiguration<S, T, C> publicPermit(T trigger, S destinationState, Consumer<C> action) {
+        return publicPermitIf(trigger, destinationState, x -> true, action);
     }
 
-    StateConfiguration<S, T> publicPermitIf(T trigger, S destinationState, FuncBoolean guard) {
-        return publicPermitIf(trigger, destinationState, guard, NO_ACTION);
+    StateConfiguration<S, T, C> publicPermitIf(T trigger, S destinationState, Predicate<C> guard) {
+        return publicPermitIf(trigger, destinationState, guard, x -> {
+        });
     }
 
-    StateConfiguration<S, T> publicPermitIf(T trigger, S destinationState, FuncBoolean guard, Action action) {
+    StateConfiguration<S, T, C> publicPermitIf(T trigger, S destinationState, Predicate<C> guard, Consumer<C> action) {
         Objects.requireNonNull(action, ACTION_IS_NULL);
         Objects.requireNonNull(guard, GUARD_IS_NULL);
         representation.addTriggerBehaviour(new TransitioningTriggerBehaviour<>(trigger, destinationState, guard, action));
         return this;
     }
 
-    StateConfiguration<S, T> publicPermitDynamic(T trigger, Func2<Object[], S> destinationStateSelector) {
-        return publicPermitDynamicIf(trigger, destinationStateSelector, NO_GUARD, NO_ACTION_N);
-    }
+    //StateConfiguration<S, T, C> publicPermitDynamic(T trigger, Func2<Object[], S> destinationStateSelector) {
+    //    return publicPermitDynamicIf(trigger, destinationStateSelector, x -> true, (c) -> {});
+    //}
 
-    StateConfiguration<S, T> publicPermitDynamicIf(T trigger, Func2<Object[], S> destinationStateSelector, FuncBoolean guard) {
-        Objects.requireNonNull(destinationStateSelector, DESTINATION_STATE_SELECTOR_IS_NULL);
-        Objects.requireNonNull(guard, GUARD_IS_NULL);
-        representation.addTriggerBehaviour(new DynamicTriggerBehaviour<>(trigger, destinationStateSelector, guard, NO_ACTION_N));
-        return this;
-    }
+    //StateConfiguration<S, T, C> publicPermitDynamicIf(T trigger, Func2<Object[], S> destinationStateSelector, Predicate<C> guard) {
+    //    Objects.requireNonNull(destinationStateSelector, DESTINATION_STATE_SELECTOR_IS_NULL);
+    //    Objects.requireNonNull(guard, GUARD_IS_NULL);
+    //    representation.addTriggerBehaviour(new DynamicTriggerBehaviour<>(trigger, destinationStateSelector, guard, (c) -> {}));
+    //    return this;
+    //}
 
-    StateConfiguration<S, T> publicPermitDynamicIf(T trigger, Func2<Object[], S> destinationStateSelector, FuncBoolean guard, Action1<Object[]> action) {
-        Objects.requireNonNull(destinationStateSelector, DESTINATION_STATE_SELECTOR_IS_NULL);
-        Objects.requireNonNull(guard, GUARD_IS_NULL);
-        representation.addTriggerBehaviour(new DynamicTriggerBehaviour<>(trigger, destinationStateSelector, guard, action));
-        return this;
-    }
+    //StateConfiguration<S, T, C> publicPermitDynamicIf(T trigger, Func2<Object[], S> destinationStateSelector, Predicate<C> guard, Consumer<C> action) {
+    //    Objects.requireNonNull(destinationStateSelector, DESTINATION_STATE_SELECTOR_IS_NULL);
+    //    Objects.requireNonNull(guard, GUARD_IS_NULL);
+    //    representation.addTriggerBehaviour(new DynamicTriggerBehaviour<>(trigger, destinationStateSelector, guard, action));
+    //    return this;
+    //}
 }

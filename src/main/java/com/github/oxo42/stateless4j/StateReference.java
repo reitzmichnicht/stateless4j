@@ -1,6 +1,6 @@
 package com.github.oxo42.stateless4j;
 
-public class StateReference<S, T> {
+public class StateReference<S> {
 
     private S state;
 

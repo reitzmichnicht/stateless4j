@@ -1,8 +1,8 @@
 package com.github.oxo42.stateless4j;
 
-import com.github.oxo42.stateless4j.transitions.Transition;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+
 import org.junit.Test;
 
 public class TransitionTests {

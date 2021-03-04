@@ -1,7 +1,6 @@
 package com.github.oxo42.stateless4j;
 
-import java.util.ArrayList;
-import java.util.List;
+import static org.junit.Assert.assertEquals;
 
 import com.github.oxo42.stateless4j.delegates.Action;
 import com.github.oxo42.stateless4j.delegates.Action1;
@@ -15,9 +14,9 @@ import com.github.oxo42.stateless4j.delegates.Func4;
 import com.github.oxo42.stateless4j.triggers.TriggerWithParameters1;
 import com.github.oxo42.stateless4j.triggers.TriggerWithParameters2;
 import com.github.oxo42.stateless4j.triggers.TriggerWithParameters3;
-
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.Test;
-import static org.junit.Assert.*;
 
 public class DynamicTransitionActionTests {
 	
@@ -33,34 +32,33 @@ public class DynamicTransitionActionTests {
     final private TriggerWithParameters3<Integer, Integer, Integer, Trigger> TriggerY3 =
             new TriggerWithParameters3<>(Trigger.Y, Integer.class, Integer.class, Integer.class);
 
-    
-    private class DynamicallyGotoState<T> implements Func<State>, Func2<T, State>, Func3<T, T, State>, Func4<T, T, T, State> {
+  private class DynamicallyGotoState<T> implements Func<State>, Func2<T, State>, Func3<T, T, State>, Func4<T, T, T, State> {
 
-    	private State targetState;
-    	
-    	public DynamicallyGotoState(State whereToGo) {
-    		this.targetState = whereToGo;
-    	}
-    	
-        @Override
-        public State call() {
-            return this.targetState;
-        }
+    private State targetState;
 
-        @Override
-        public State call(T value) {
-            return this.targetState;
-        }
+    public DynamicallyGotoState(State whereToGo) {
+      this.targetState = whereToGo;
+    }
 
-        @Override
-        public State call(T val1, T val2) {
-            return this.targetState;
-        }
+    @Override
+    public State get() {
+      return this.targetState;
+    }
 
-        @Override
-        public State call(T val1, T val2, T val3) {
-            return this.targetState;
-        }
+    @Override
+    public State apply(T value) {
+      return this.targetState;
+    }
+
+    @Override
+    public State call(T val1, T val2) {
+      return this.targetState;
+    }
+
+    @Override
+    public State call(T val1, T val2, T val3) {
+      return this.targetState;
+    }
     }
     
     private DynamicallyGotoState<Integer> gotoA = new DynamicallyGotoState<>(State.A);

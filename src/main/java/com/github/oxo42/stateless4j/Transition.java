@@ -1,4 +1,4 @@
-package com.github.oxo42.stateless4j.transitions;
+package com.github.oxo42.stateless4j;
 
 public class Transition<S, T> {
 

@@ -1,53 +1,55 @@
 package com.github.oxo42.stateless4j;
 
-import com.github.oxo42.stateless4j.delegates.Action1;
-import com.github.oxo42.stateless4j.delegates.Action2;
-import com.github.oxo42.stateless4j.transitions.Transition;
-import com.github.oxo42.stateless4j.triggers.TriggerBehaviour;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.function.BiConsumer;
 
-import java.util.*;
+public class StateRepresentation<S, T, C> {
 
-public class StateRepresentation<S, T> {
-
-    private static final String ACTION_IS_NULL = "action is null";
-    private static final String TRANSITION_IS_NULL = "transition is null";
+    private static final String ACTION_IS_NULL = "action must not be null";
+    private static final String TRANSITION_IS_NULL = "transition must not be null";
     private final S state;
 
-    private final Map<T, List<TriggerBehaviour<S, T>>> triggerBehaviours = new HashMap<>();
-    private final List<Action2<Transition<S, T>, Object[]>> entryActions = new ArrayList<>();
-    private final List<Action1<Transition<S, T>>> exitActions = new ArrayList<>();
-    private final List<StateRepresentation<S, T>> substates = new ArrayList<>();
-    private StateRepresentation<S, T> superstate; // null
+    private final Map<T, List<TriggerBehaviour<S, T, C>>> triggerBehaviours = new HashMap<>();
+    private final List<BiConsumer<Transition<S, T>, C>> entryActions = new ArrayList<>();
+    private final List<BiConsumer<Transition<S, T>, C>> exitActions = new ArrayList<>();
+    private final List<StateRepresentation<S, T, C>> substates = new ArrayList<>();
+    private StateRepresentation<S, T, C> superstate; // null
 
     public StateRepresentation(S state) {
         this.state = state;
     }
 
-    protected Map<T, List<TriggerBehaviour<S, T>>> getTriggerBehaviours() {
+    protected Map<T, List<TriggerBehaviour<S, T, C>>> getTriggerBehaviours() {
         return triggerBehaviours;
     }
 
-    public Boolean canHandle(T trigger) {
-        return tryFindHandler(trigger) != null;
+    public Boolean canHandle(T trigger, C context) {
+        return tryFindHandler(trigger, context) != null;
     }
 
-    public TriggerBehaviour<S, T> tryFindHandler(T trigger) {
-        TriggerBehaviour<S, T> result = tryFindLocalHandler(trigger);
+    public TriggerBehaviour<S, T, C> tryFindHandler(T trigger, C context) {
+        TriggerBehaviour<S, T, C> result = tryFindLocalHandler(trigger, context);
         if (result == null && superstate != null) {
-            result = superstate.tryFindHandler(trigger);
+            result = superstate.tryFindHandler(trigger, context);
         }
         return result;
     }
 
-    TriggerBehaviour<S, T> tryFindLocalHandler(T trigger/*, out TriggerBehaviour handler*/) {
-        List<TriggerBehaviour<S, T>> possible = triggerBehaviours.get(trigger);
+    TriggerBehaviour<S, T, C> tryFindLocalHandler(T trigger, C context) {
+        List<TriggerBehaviour<S, T, C>> possible = triggerBehaviours.get(trigger);
         if (possible == null) {
             return null;
         }
 
-        List<TriggerBehaviour<S, T>> actual = new ArrayList<>();
-        for (TriggerBehaviour<S, T> triggerBehaviour : possible) {
-            if (triggerBehaviour.isGuardConditionMet()) {
+        List<TriggerBehaviour<S, T, C>> actual = new ArrayList<>();
+        for (TriggerBehaviour<S, T, C> triggerBehaviour : possible) {
+            if (triggerBehaviour.isGuardConditionMet(context)) {
                 actual.add(triggerBehaviour);
             }
         }
@@ -59,76 +61,75 @@ public class StateRepresentation<S, T> {
         return actual.isEmpty() ? null : actual.get(0);
     }
 
-    public void addEntryAction(final T trigger, final Action2<Transition<S, T>, Object[]> action) {
+    public void addEntryAction(final T trigger, final BiConsumer<Transition<S, T>, C> action) {
         Objects.requireNonNull(action, ACTION_IS_NULL);
 
-        entryActions.add((t, args) -> {
+        entryActions.add((t, c) -> {
             T trans_trigger = t.getTrigger();
             if (trans_trigger != null && trans_trigger.equals(trigger)) {
-                action.doIt(t, args);
+                action.accept(t, c);
             }
         });
     }
 
-    public void addEntryAction(Action2<Transition<S, T>, Object[]> action) {
+    public void addEntryAction(BiConsumer<Transition<S, T>, C> action) {
         Objects.requireNonNull(action, ACTION_IS_NULL);
         entryActions.add(action);
     }
 
-    public void insertEntryAction(Action2<Transition<S, T>, Object[]> action) {
+    public void insertEntryAction(BiConsumer<Transition<S, T>, C> action) {
         Objects.requireNonNull(action, ACTION_IS_NULL);
         entryActions.add(0, action);
     }
 
-    public void addExitAction(Action1<Transition<S, T>> action) {
+    public void addExitAction(BiConsumer<Transition<S, T>, C> action) {
         Objects.requireNonNull(action, ACTION_IS_NULL);
         exitActions.add(action);
     }
 
-    public void enter(Transition<S, T> transition, Object... entryArgs) {
+    public void enter(Transition<S, T> transition, C context) {
         Objects.requireNonNull(transition, TRANSITION_IS_NULL);
 
         if (transition.isReentry()) {
-            executeEntryActions(transition, entryArgs);
+            executeEntryActions(transition, context);
         } else if (!includes(transition.getSource())) {
             if (superstate != null) {
-                superstate.enter(transition, entryArgs);
+                superstate.enter(transition, context);
             }
 
-            executeEntryActions(transition, entryArgs);
+            executeEntryActions(transition, context);
         }
     }
 
-    public void exit(Transition<S, T> transition) {
+    public void exit(Transition<S, T> transition, C context) {
         Objects.requireNonNull(transition, TRANSITION_IS_NULL);
 
         if (transition.isReentry()) {
-            executeExitActions(transition);
+            executeExitActions(transition, context);
         } else if (!includes(transition.getDestination())) {
-            executeExitActions(transition);
+            executeExitActions(transition, context);
             if (superstate != null) {
-                superstate.exit(transition);
+                superstate.exit(transition, context);
             }
         }
     }
 
-    void executeEntryActions(Transition<S, T> transition, Object[] entryArgs) {
+    void executeEntryActions(Transition<S, T> transition, C context) {
         Objects.requireNonNull(transition, TRANSITION_IS_NULL);
-        Objects.requireNonNull(entryArgs, "entryArgs is null");
-        for (Action2<Transition<S, T>, Object[]> action : entryActions) {
-            action.doIt(transition, entryArgs);
+        for (BiConsumer<Transition<S, T>, C> action : entryActions) {
+            action.accept(transition, context);
         }
     }
 
-    void executeExitActions(Transition<S, T> transition) {
+    void executeExitActions(Transition<S, T> transition, C context) {
         Objects.requireNonNull(transition, TRANSITION_IS_NULL);
-        for (Action1<Transition<S, T>> action : exitActions) {
-            action.doIt(transition);
+        for (BiConsumer<Transition<S, T>, C> action : exitActions) {
+            action.accept(transition, context);
         }
     }
 
-    public void addTriggerBehaviour(TriggerBehaviour<S, T> triggerBehaviour) {
-        List<TriggerBehaviour<S, T>> allowed;
+    public void addTriggerBehaviour(TriggerBehaviour<S, T, C> triggerBehaviour) {
+        List<TriggerBehaviour<S, T, C>> allowed;
         if (!triggerBehaviours.containsKey(triggerBehaviour.getTrigger())) {
             allowed = new ArrayList<>();
             triggerBehaviours.put(triggerBehaviour.getTrigger(), allowed);
@@ -137,11 +138,11 @@ public class StateRepresentation<S, T> {
         allowed.add(triggerBehaviour);
     }
 
-    public StateRepresentation<S, T> getSuperstate() {
+    public StateRepresentation<S, T, C> getSuperstate() {
         return superstate;
     }
 
-    public void setSuperstate(StateRepresentation<S, T> value) {
+    public void setSuperstate(StateRepresentation<S, T, C> value) {
         superstate = value;
     }
 
@@ -149,13 +150,13 @@ public class StateRepresentation<S, T> {
         return state;
     }
 
-    public void addSubstate(StateRepresentation<S, T> substate) {
-        Objects.requireNonNull(substate, "substate is null");
+    public void addSubstate(StateRepresentation<S, T, C> substate) {
+        Objects.requireNonNull(substate, "substate must not be null");
         substates.add(substate);
     }
 
     public boolean includes(S stateToCheck) {
-        for (StateRepresentation<S, T> s : substates) {
+        for (StateRepresentation<S, T, C> s : substates) {
             if (s.includes(stateToCheck)) {
                 return true;
             }
@@ -167,12 +168,12 @@ public class StateRepresentation<S, T> {
         return this.state.equals(stateToCheck) || (superstate != null && superstate.isIncludedIn(stateToCheck));
     }
 
-    public List<T> getPermittedTriggers() {
+    public List<T> getPermittedTriggers(C context) {
         Set<T> result = new HashSet<>();
 
         for (T t : triggerBehaviours.keySet()) {
-            for (TriggerBehaviour<S, T> v : triggerBehaviours.get(t)) {
-                if (v.isGuardConditionMet()) {
+            for (TriggerBehaviour<S, T, C> v : triggerBehaviours.get(t)) {
+                if (v.isGuardConditionMet(context)) {
                     result.add(t);
                     break;
                 }
@@ -180,7 +181,7 @@ public class StateRepresentation<S, T> {
         }
 
         if (getSuperstate() != null) {
-            result.addAll(getSuperstate().getPermittedTriggers());
+            result.addAll(getSuperstate().getPermittedTriggers(context));
         }
 
         return new ArrayList<>(result);

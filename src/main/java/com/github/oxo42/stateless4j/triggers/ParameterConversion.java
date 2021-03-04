@@ -1,4 +1,4 @@
-package com.github.oxo42.stateless4j.conversion;
+package com.github.oxo42.stateless4j.triggers;
 
 import java.util.Objects;
 

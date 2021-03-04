@@ -1,9 +1,8 @@
 package com.github.oxo42.stateless4j;
 
-import com.github.oxo42.stateless4j.transitions.TransitioningTriggerBehaviour;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+
 import org.junit.Test;
 
 public class TransitioningTriggerBehaviourTests {

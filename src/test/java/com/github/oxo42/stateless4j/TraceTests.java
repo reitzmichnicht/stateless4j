@@ -1,12 +1,15 @@
 package com.github.oxo42.stateless4j;
 
-import com.github.oxo42.stateless4j.delegates.Action2;
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+
 import com.github.oxo42.stateless4j.delegates.Trace;
-import static org.junit.Assert.*;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
-import static org.mockito.Mockito.*;
 import org.mockito.MockitoAnnotations;
 
 public class TraceTests {
@@ -37,11 +40,7 @@ public class TraceTests {
         // GIVEN
         //      tracer is set
         //      unhandled transitions are allowed
-        fsm.onUnhandledTrigger(new Action2<State, Trigger>() {
-            @Override
-            public void doIt(State arg1, Trigger arg2) {
-
-            }
+        fsm.onUnhandledTrigger((arg1, arg2) -> {
         });
 
         // WHEN

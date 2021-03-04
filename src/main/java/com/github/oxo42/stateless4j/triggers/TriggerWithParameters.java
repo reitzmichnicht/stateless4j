@@ -1,7 +1,5 @@
 package com.github.oxo42.stateless4j.triggers;
 
-import com.github.oxo42.stateless4j.conversion.ParameterConversion;
-
 import java.util.Objects;
 
 
